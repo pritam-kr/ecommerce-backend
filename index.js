@@ -99,6 +99,7 @@ app.get("/api/auth/login", async (req, res) => {
           message: "User logger in successfully",
           name: isUser.name,
           email: isUser.email,
+          userId: isUser._id,
         });
     }
   } catch (error) {
