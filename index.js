@@ -1,13 +1,11 @@
+import express from "express";
+import generateFakeProduct from "./backend/faker/index.js";
+import connectDB from "./backend/config/index.js";
+import { Product, Store } from "./backend/schema/products.js";
+import bcrypt from "bcrypt";
+import { Users } from "./backend/schema/auth.js";
+import morgan from "morgan";
 
-import express from 'express';
-import generateFakeProduct from './backend/faker/index.js';
-import connectDB from './backend/config/index.js';
-import { Product, Store } from './backend/schema/products.js';
-import bcrypt from 'bcrypt';
-import { Users } from './backend/schema/auth.js';
-import morgan from 'morgan';
- 
- 
 const app = express();
 // Middleware to parse JSON bodies
 app.use(express.json());
@@ -18,71 +16,66 @@ app.use(express.json());
 
 const PORT = 4000;
 app.use((req, res, next) => {
-    console.log(`${req.method} ${req.url}`); // Logs the HTTP method and URL
-    next(); // Move to the next middleware/route handler
+  console.log(`${req.method} ${req.url}`); // Logs the HTTP method and URL
+  next(); // Move to the next middleware/route handler
 });
 
+connectDB();
 
-connectDB()
+app.get("/", (req, res) => {
+  res.send("Hello World");
+});
 
-app.get('/', (req, res) => {
-    res.send('Hello World');
-})
+app.get("/api/generate-fake-product", async (req, res) => {
+  const data = await generateFakeProduct(req, res, 20);
+  Product.insertMany(data);
+});
 
-
-app.get('/api/generate-fake-product', async (req, res) => {
-const data = await generateFakeProduct(req, res, 20);
-Product.insertMany(data)
-})
-
-
-app.get('/api/products', async (req, res) => {
-    try {
-        const products = await Product.find();
-        res.status(200).json({ products });
-    } catch (error) {
-        res.status(500).json({ message: 'Internal Server Error' });
-    }
-})
+app.get("/api/products", async (req, res) => {
+  try {
+    const products = await Product.find();
+    res.status(200).json({ products });
+  } catch (error) {
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
 
 const hashPassword = async (password) => {
-    const saltRounds = 10; // Number of rounds to generate the salt (higher is more secure but slower)
-    try {
-      const hashedPassword = await bcrypt.hash(password, saltRounds);
-      
-      return hashedPassword;
-    } catch (error) {
-      console.error('Error hashing password:', error);
-    }
-  };
+  const saltRounds = 10; // Number of rounds to generate the salt (higher is more secure but slower)
+  try {
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-app.post('/api/auth/register', async (req, res) => {
+    return hashedPassword;
+  } catch (error) {
+    console.error("Error hashing password:", error);
+  }
+};
+
+app.post("/api/auth/register", async (req, res) => {
+  try {
     const { name, email, password, phone } = req.body;
 
+    const hashedPawword = await hashPassword(password);
     const user = new Users({
-        name,
-        email,
-        password: await hashPassword(password),
-        phone
-    })
+      name,
+      email,
+      password: hashedPawword,
+      phone,
+    });
 
-    const isUser = await Users.find({ email: email });
-
-    if(isUser) {
-        return res.status(400).json({ message: 'User already exists' });
+    const isUser = await Users.findOne({ email: email });
+    if (isUser) {
+      res.status(400).json({ message: "User already exists" });
     }
-    await user.save()
-    .then(() => {
-        res.status(201).json({ message: 'User registered successfully' });
-    })
-    .catch((error) => {
-        res.status(500).json({ message: 'Internal Server Error' });
-    })
 
-})
-
-
+    const h = await user.save();
+    console.log(h);
+    res.status(200).json({ message: "User registered successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
 
 app.listen(PORT, () => {
-    console.log('Server is running on port ' + 'http://localhost:' + PORT);
-})
+  console.log("Server is running on port " + "http://localhost:" + PORT);
+});
