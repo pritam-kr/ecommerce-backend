@@ -68,9 +68,39 @@ app.post("/api/auth/register", async (req, res) => {
       res.status(400).json({ message: "User already exists" });
     }
 
-    const h = await user.save();
-    console.log(h);
+    await user.save();
+
     res.status(200).json({ message: "User registered successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+app.get("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    const isUser = await Users.findOne({ email: email });
+   
+    if (!isUser) {
+      res.status(400).json({ message: "User not found" });
+    }
+
+    if (isUser) {
+      const isValidPassword = await bcrypt.compare(password, isUser.password);
+ 
+      if (!isValidPassword) {
+        return res.status(400).json({ message: "Invalid Password" });
+      }
+
+      return res
+        .status(200)
+        .json({
+          message: "User logger in successfully",
+          name: isUser.name,
+          email: isUser.email,
+        });
+    }
   } catch (error) {
     res.status(500).json({ message: "Internal Server Error" });
   }
