@@ -3,9 +3,25 @@ import express from 'express';
 import generateFakeProduct from './backend/faker/index.js';
 import connectDB from './backend/config/index.js';
 import { Product, Store } from './backend/schema/products.js';
+import bcrypt from 'bcrypt';
+import { Users } from './backend/schema/auth.js';
+import morgan from 'morgan';
+ 
  
 const app = express();
+// Middleware to parse JSON bodies
+app.use(express.json());
+// This will parse JSON objects in the request body
+
+// Use morgan middleware for logging requests
+// app.use(morgan('dev')); // The 'dev' format logs the method, URL, status code, and response time
+
 const PORT = 4000;
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`); // Logs the HTTP method and URL
+    next(); // Move to the next middleware/route handler
+});
+
 
 connectDB()
 
@@ -29,7 +45,41 @@ app.get('/api/products', async (req, res) => {
     }
 })
 
+const hashPassword = async (password) => {
+    const saltRounds = 10; // Number of rounds to generate the salt (higher is more secure but slower)
+    try {
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+      
+      return hashedPassword;
+    } catch (error) {
+      console.error('Error hashing password:', error);
+    }
+  };
 
+app.post('/api/auth/register', async (req, res) => {
+    const { name, email, password, phone } = req.body;
+
+    const user = new Users({
+        name,
+        email,
+        password: await hashPassword(password),
+        phone
+    })
+
+    const isUser = await Users.find({ email: email });
+
+    if(isUser) {
+        return res.status(400).json({ message: 'User already exists' });
+    }
+    await user.save()
+    .then(() => {
+        res.status(201).json({ message: 'User registered successfully' });
+    })
+    .catch((error) => {
+        res.status(500).json({ message: 'Internal Server Error' });
+    })
+
+})
 
 
 
